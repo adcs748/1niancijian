@@ -17,11 +17,11 @@ jobs:
 
       - name: 构建 App（不签名）
         run: |
-          xcodebuild -project EnglishCoach.xcodeproj -target EnglishCoach -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+          xcodebuild -project EnglishCoach.xcodeproj -target EnglishCoach -configuration Release -sdk iphoneos CONFIGURATION_BUILD_DIR="$PWD/build/Release-iphoneos" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
 
       - name: 打包成未签名 IPA
         run: |
-          APP_PATH=$(find "$PWD" -name "EnglishCoach.app" -path "*Release-iphoneos*" | head -n 1)
+          APP_PATH=$(find "$PWD/build" -name "EnglishCoach.app" -path "*Release-iphoneos*" | head -n 1)
           echo "App 路径：$APP_PATH"
           if [ -z "$APP_PATH" ]; then echo "未找到构建产物"; exit 1; fi
           mkdir -p build/Payload

@@ -18,16 +18,27 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: 安装 Android SDK 工具
+        uses: android-actions/setup-android@v3
+
+      - name: 安装 SDK 组件并接受许可
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools" || true
+
+      - name: 环境诊断
+        run: |
+          java -version
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls "$ANDROID_HOME" || true
+
       - name: 安装 Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.7'
 
-      - name: 安装 Android SDK 组件
-        run: sdkmanager "platforms;android-34" "build-tools;34.0.0" || true
-
       - name: 构建 Debug APK
-        run: gradle -p android assembleDebug --no-daemon --stacktrace
+        run: gradle -p android :app:assembleDebug --no-daemon --stacktrace
 
       - name: 上传 APK
         uses: actions/upload-artifact@v4

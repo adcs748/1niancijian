@@ -520,6 +520,7 @@ final class FavoriteStore: ObservableObject {
 struct SkinConfig: Codable, Hashable {
     var fileName: String
     var opacity: Double
+    var brightness: Double? = nil
 }
 
 struct LaunchConfig: Codable, Hashable {
@@ -655,6 +656,10 @@ final class AppearanceStore: ObservableObject {
         config.skins[key]?.opacity ?? 0.35
     }
 
+    func skinBrightness(_ key: String) -> Double {
+        config.skins[key]?.brightness ?? 1.0
+    }
+
     func updateWallpaper(data: Data) {
         guard let result = writeImage(data: data, maxSize: 1280, keepPNG: false) else { return }
         removeFile(config.wallpaperFileName)
@@ -684,6 +689,13 @@ final class AppearanceStore: ObservableObject {
     func setSkinOpacity(key: String, value: Double) {
         guard var skin = config.skins[key] else { return }
         skin.opacity = min(1, max(0, value))
+        config.skins[key] = skin
+        save()
+    }
+
+    func setSkinBrightness(key: String, value: Double) {
+        guard var skin = config.skins[key] else { return }
+        skin.brightness = min(1.8, max(0.2, value))
         config.skins[key] = skin
         save()
     }
@@ -852,6 +864,8 @@ final class SpeechPlayer: NSObject, ObservableObject, AVSpeechSynthesizerDelegat
 
     private let synthesizer = AVSpeechSynthesizer()
     private var items: [String] = []
+    private var segments: [String] = []
+    private var segmentIndex = 0
     private var stopDate: Date?
     private var tickTask: Task<Void, Never>?
     private var gapTask: Task<Void, Never>?
@@ -901,12 +915,14 @@ final class SpeechPlayer: NSObject, ObservableObject, AVSpeechSynthesizerDelegat
         gapTask = nil
         stopDate = nil
         remainingSeconds = 0
+        segments = []
+        segmentIndex = 0
         synthesizer.stopSpeaking(at: .immediate)
     }
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
         Task { @MainActor in
-            self.handleFinish()
+            self.handleSegmentFinish()
         }
     }
 
@@ -934,11 +950,36 @@ final class SpeechPlayer: NSObject, ObservableObject, AVSpeechSynthesizerDelegat
         guard isActive, !isPaused else { return }
         guard index < items.count else { return }
 
-        let text = items[index]
+        segments = items[index]
+            .components(separatedBy: "\n")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        segmentIndex = 0
+        speakSegment()
+    }
+
+    private func speakSegment() {
+        guard isActive, !isPaused else { return }
+        guard segmentIndex < segments.count else {
+            handleFinish()
+            return
+        }
+        let text = segments[segmentIndex]
+        let isChinese = text.range(of: "\\p{Han}", options: .regularExpression) != nil
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+        utterance.voice = AVSpeechSynthesisVoice(language: isChinese ? "zh-CN" : "en-US")
         utterance.rate = 0.44
         synthesizer.speak(utterance)
+    }
+
+    private func handleSegmentFinish() {
+        guard isActive, !isPaused else { return }
+        segmentIndex += 1
+        if segmentIndex < segments.count {
+            speakSegment()
+        } else {
+            handleFinish()
+        }
     }
 
     private func startTick() {

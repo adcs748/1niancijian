@@ -542,6 +542,7 @@ struct Skinnable: ViewModifier {
                             .resizable()
                             .scaledToFill()
                             .opacity(appearance.skinOpacity(key))
+                            .brightness(appearance.skinBrightness(key) - 1.0)
                     }
                 }
                 .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))

@@ -243,6 +243,7 @@ struct SkinEditorSheet: View {
 
     @State private var pickerItem: PhotosPickerItem?
     @State private var opacity: Double = 0.35
+    @State private var brightness: Double = 1.0
 
     var body: some View {
         NavigationStack {
@@ -271,6 +272,16 @@ struct SkinEditorSheet: View {
                             .foregroundStyle(.secondary)
                         Slider(value: $opacity, in: 0...1)
                         Text("\(Int(opacity * 100))%")
+                            .font(.system(size: 12))
+                            .frame(width: 40, alignment: .trailing)
+                    }
+
+                    HStack(spacing: 10) {
+                        Text("图案深浅")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                        Slider(value: $brightness, in: 0.2...1.8)
+                        Text("\(Int(brightness * 100))%")
                             .font(.system(size: 12))
                             .frame(width: 40, alignment: .trailing)
                     }
@@ -304,9 +315,13 @@ struct SkinEditorSheet: View {
             }
             .onAppear {
                 opacity = appearance.skinOpacity(key)
+                brightness = appearance.skinBrightness(key)
             }
             .onChange(of: opacity) { _, newValue in
                 appearance.setSkinOpacity(key: key, value: newValue)
+            }
+            .onChange(of: brightness) { _, newValue in
+                appearance.setSkinBrightness(key: key, value: newValue)
             }
             .onChange(of: pickerItem) { _, item in
                 loadImage(item)

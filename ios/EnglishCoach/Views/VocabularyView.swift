@@ -64,9 +64,9 @@ struct VocabularyView: View {
     private func playbackItems() -> [String] {
         switch tab {
         case .cet4, .cet6:
-            return words.map { $0.word }
+            return words.map { $0.word + "\n" + $0.meaning }
         case .favorites:
-            return favoriteItems.filter { $0.type == .word }.map { $0.text }
+            return favoriteItems.filter { $0.type == .word }.map { $0.text + "\n" + ($0.translation ?? "") }
         }
     }
 

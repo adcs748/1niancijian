@@ -6,6 +6,8 @@
     paused: false,
     items: [],
     index: 0,
+    segments: [],
+    segmentIndex: 0,
     loop: true,
     interval: 1,
     limitMinutes: 0,
@@ -73,6 +75,10 @@
     try { global.speechSynthesis.cancel(); } catch (err) {}
   }
 
+  function isChinese(text) {
+    return /[\u4e00-\u9fa5]/.test(text);
+  }
+
   function advance() {
     if (!state.active || state.paused) return;
     state.index += 1;
@@ -80,6 +86,49 @@
     gapTimer = setTimeout(function () {
       if (state.active && !state.paused) speakCurrent();
     }, Math.max(0, state.interval * 1000));
+  }
+
+  function nextSegment() {
+    if (!state.active || state.paused) return;
+    state.segmentIndex += 1;
+    speakSegment();
+  }
+
+  function speakSegment() {
+    if (!state.active || state.paused) return;
+
+    if (state.segmentIndex >= state.segments.length) {
+      advance();
+      return;
+    }
+
+    var text = state.segments[state.segmentIndex];
+    var lang = isChinese(text) ? 'zh-CN' : 'en-US';
+
+    if (nativeTTS()) {
+      state.utterance = null;
+      try {
+        global.AndroidTTS.speak(text, lang);
+      } catch (err) {
+        nextSegment();
+      }
+      return;
+    }
+
+    var utterance = new global.SpeechSynthesisUtterance(text);
+    utterance.lang = lang;
+    utterance.rate = 0.92;
+    utterance.pitchMultiplier = 1;
+
+    utterance.onend = nextSegment;
+
+    utterance.onerror = function () {
+      if (!state.active || state.paused) return;
+      nextSegment();
+    };
+
+    state.utterance = utterance;
+    global.speechSynthesis.speak(utterance);
   }
 
   function speakCurrent() {
@@ -94,44 +143,23 @@
       }
     }
 
-    var text = state.items[state.index];
-    if (!text) {
+    var raw = state.items[state.index];
+    if (!raw) {
       state.index += 1;
       speakCurrent();
       return;
     }
 
-    if (nativeTTS()) {
-      state.utterance = null;
-      try {
-        global.AndroidTTS.speak(String(text));
-      } catch (err) {
-        advance();
-      }
-      return;
-    }
-
-    var utterance = new global.SpeechSynthesisUtterance(text);
-    utterance.lang = 'en-US';
-    utterance.rate = 0.92;
-    utterance.pitchMultiplier = 1;
-
-    utterance.onend = advance;
-
-    utterance.onerror = function () {
-      if (!state.active || state.paused) return;
-      state.index += 1;
-      gapTimer = setTimeout(function () {
-        if (state.active && !state.paused) speakCurrent();
-      }, 400);
-    };
-
-    state.utterance = utterance;
-    global.speechSynthesis.speak(utterance);
+    state.segments = String(raw).split('\n').filter(function (segment) {
+      return String(segment).trim().length > 0;
+    });
+    state.segmentIndex = 0;
+    notify();
+    speakSegment();
   }
 
   global.__nativeTTSDone = function () {
-    advance();
+    nextSegment();
   };
 
   function start(items, label, startIndex) {
@@ -155,6 +183,8 @@
     state.label = label || '';
     state.startedAt = Date.now();
     state.stopAt = 0;
+    state.segments = [];
+    state.segmentIndex = 0;
 
     cancelSpeech();
 
@@ -167,7 +197,6 @@
 
     tickTimer = setInterval(notify, 1000);
     speakCurrent();
-    notify();
     return true;
   }
 
@@ -186,7 +215,7 @@
     if (!state.active || !state.paused) return;
     state.paused = false;
     if (nativeTTS()) {
-      speakCurrent();
+      speakSegment();
     } else {
       try { global.speechSynthesis.resume(); } catch (err) {}
     }
@@ -203,6 +232,8 @@
     state.utterance = null;
     state.items = [];
     state.index = 0;
+    state.segments = [];
+    state.segmentIndex = 0;
     state.label = '';
     state.stopAt = 0;
 

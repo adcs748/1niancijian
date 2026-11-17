@@ -279,7 +279,7 @@
     }
     if (window.AndroidTTS && typeof window.AndroidTTS.speak === 'function') {
       try {
-        window.AndroidTTS.speak(content);
+        window.AndroidTTS.speak(content, 'en-US');
         return;
       } catch (err) {}
     }
@@ -828,6 +828,7 @@
       }
       layer.style.backgroundImage = 'url("' + skin.image + '")';
       layer.style.opacity = String(typeof skin.opacity === 'number' ? skin.opacity : 0.35);
+      layer.style.filter = 'brightness(' + (typeof skin.brightness === 'number' ? skin.brightness : 1) + ')';
     }
   }
 
@@ -837,7 +838,10 @@
       if (nodes[i].getAttribute('data-skin') !== key) continue;
       var layer = nodes[i].querySelector('.skin-layer');
       var skin = appearance.skins[key];
-      if (layer && skin) layer.style.opacity = String(skin.opacity);
+      if (layer && skin) {
+        layer.style.opacity = String(skin.opacity);
+        layer.style.filter = 'brightness(' + (typeof skin.brightness === 'number' ? skin.brightness : 1) + ')';
+      }
     }
   }
 
@@ -1287,6 +1291,7 @@
     var skin = appearance.skins[key];
     var hasImage = skin && skin.image;
     var percent = Math.round((skin && typeof skin.opacity === 'number' ? skin.opacity : 0.35) * 100);
+    var brightness = Math.round((skin && typeof skin.brightness === 'number' ? skin.brightness : 1) * 100);
 
     openSheet('' +
       '<div class="sheet-grabber"></div>' +
@@ -1302,6 +1307,9 @@
       '<div class="slider-row"><span>图案透明度</span>' +
         '<input id="skinOpacity" type="range" min="0" max="100" step="1" value="' + percent + '">' +
         '<span id="skinOpacityValue">' + percent + '%</span></div>' +
+      '<div class="slider-row"><span>图案深浅</span>' +
+        '<input id="skinBrightness" type="range" min="20" max="180" step="1" value="' + brightness + '">' +
+        '<span id="skinBrightnessValue">' + brightness + '%</span></div>' +
       '<button class="action-row cancel" data-action="close-sheet">完成</button>');
   }
 
@@ -2725,9 +2733,9 @@
     }
     if (state.view === 'vocabulary' && state.tab === 'favorites') {
       return filteredFavorites().filter(function (item) { return item.type === 'word'; })
-        .map(function (item) { return item.text; });
+        .map(function (item) { return item.text + '\n' + (item.translation || ''); });
     }
-    return filteredWords().map(function (entry) { return entry.word; });
+    return filteredWords().map(function (entry) { return entry.word + '\n' + (entry.meaning || ''); });
   }
 
   function pendingPlayerLabel() {
@@ -3536,6 +3544,17 @@
         persistAppearance();
         var skinLabel = $id('skinOpacityValue');
         if (skinLabel) skinLabel.textContent = Math.round(skinValue * 100) + '%';
+        return;
+      }
+
+      if (event.target.id === 'skinBrightness') {
+        if (!pendingSkinKey || !appearance.skins[pendingSkinKey]) return;
+        var brightValue = Math.min(1.8, Math.max(0.2, Number(event.target.value) / 100));
+        appearance.skins[pendingSkinKey].brightness = brightValue;
+        updateSkinsFor(pendingSkinKey);
+        persistAppearance();
+        var brightLabel = $id('skinBrightnessValue');
+        if (brightLabel) brightLabel.textContent = Math.round(brightValue * 100) + '%';
         return;
       }
 

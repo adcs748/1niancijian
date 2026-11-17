@@ -17,27 +17,27 @@ jobs:
 
       - name: 构建 App（不签名）
         run: |
-          xcodebuild -project EnglishCoach.xcodeproj -target EnglishCoach -configuration Release -sdk iphoneos CONFIGURATION_BUILD_DIR="$PWD/build/Release-iphoneos" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
+          xcodebuild -project ios/EnglishCoach.xcodeproj -target EnglishCoach -configuration Release -sdk iphoneos CONFIGURATION_BUILD_DIR="$PWD/ios/build/Release-iphoneos" CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
 
       - name: 打包成未签名 IPA
         run: |
-          APP_PATH=$(find "$PWD/build" -name "EnglishCoach.app" -path "*Release-iphoneos*" | head -n 1)
+          APP_PATH=$(find "$PWD/ios/build" -name "EnglishCoach.app" -path "*Release-iphoneos*" | head -n 1)
           echo "App 路径：$APP_PATH"
           if [ -z "$APP_PATH" ]; then echo "未找到构建产物"; exit 1; fi
-          mkdir -p build/Payload
-          cp -R "$APP_PATH" build/Payload/
-          cd build
+          mkdir -p ios/build/Payload
+          cp -R "$APP_PATH" ios/build/Payload/
+          cd ios/build
           zip -r -q EnglishCoach-unsigned.ipa Payload
 
       - name: 上传安装包
         uses: actions/upload-artifact@v4
         with:
           name: EnglishCoach-unsigned-ipa
-          path: build/EnglishCoach-unsigned.ipa
+          path: ios/build/EnglishCoach-unsigned.ipa
           if-no-files-found: error
 
       - name: 输出结果
         run: |
           echo "已生成未签名 IPA："
-          ls -lh build/EnglishCoach-unsigned.ipa
+          ls -lh ios/build/EnglishCoach-unsigned.ipa
           echo "请用 Sideloadly / AltStore 导入并自签后安装到 iPhone。"

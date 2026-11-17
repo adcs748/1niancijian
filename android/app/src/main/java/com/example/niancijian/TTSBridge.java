@@ -16,26 +16,29 @@ public class TTSBridge {
 
     public TTSBridge(Context context, WebView webView) {
         this.webView = webView;
-        this.tts = new TextToSpeech(context.getApplicationContext(), status -> {
-            if (status == TextToSpeech.SUCCESS) {
-                int result = tts.setLanguage(Locale.US);
-                ready = result != TextToSpeech.LANG_MISSING_DATA
-                        && result != TextToSpeech.LANG_NOT_SUPPORTED;
-                tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
-                    @Override
-                    public void onStart(String utteranceId) {
-                    }
+        this.tts = new TextToSpeech(context.getApplicationContext(), this::onInit);
+    }
 
-                    @Override
-                    public void onDone(String utteranceId) {
-                        notifyDone();
-                    }
+    private void onInit(int status) {
+        if (status != TextToSpeech.SUCCESS || tts == null) {
+            return;
+        }
+        int result = tts.setLanguage(Locale.US);
+        ready = result != TextToSpeech.LANG_MISSING_DATA
+                && result != TextToSpeech.LANG_NOT_SUPPORTED;
+        tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+            @Override
+            public void onStart(String utteranceId) {
+            }
 
-                    @Override
-                    public void onError(String utteranceId) {
-                        notifyDone();
-                    }
-                });
+            @Override
+            public void onDone(String utteranceId) {
+                notifyDone();
+            }
+
+            @Override
+            public void onError(String utteranceId) {
+                notifyDone();
             }
         });
     }

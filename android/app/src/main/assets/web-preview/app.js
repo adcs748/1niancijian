@@ -1237,8 +1237,9 @@
       '</div>' +
       '<div class="appearance-block">' +
         '<div class="appearance-label">组件底层图案</div>' +
-        '<div class="tip" style="margin-top:6px">进入编辑模式后，点击任意卡片、按钮或工具项，即可单独为它选择相册图片。</div>' +
+        '<div class="tip" style="margin-top:6px">可进入编辑模式后点击组件，或直接从列表选择组件进行自定义。</div>' +
         '<button class="translate-btn" style="margin-top:12px" data-action="start-skin-editing">' + icon('eye', 16) + ' 进入组件图案编辑</button>' +
+        '<button class="soft-btn" style="margin-top:10px" data-action="open-skin-picker">' + icon('folder', 15) + ' 选择组件自定义</button>' +
       '</div>' +
       '<div class="appearance-block">' +
         '<div class="appearance-label">启动动画</div>' +
@@ -1317,16 +1318,53 @@
     openSkinSheet(pendingSkinKey, pendingSkinLabel);
   }
 
+  function openSkinPicker() {
+    var nodes = viewport.querySelectorAll('[data-skin]');
+    if (!nodes.length) {
+      toast('当前页面没有可编辑组件，请先返回首页');
+      return;
+    }
+    var rows = '';
+    for (var i = 0; i < nodes.length; i += 1) {
+      var key = nodes[i].getAttribute('data-skin');
+      var label = nodes[i].getAttribute('data-skin-label') || key;
+      rows += '<button class="action-row" data-action="edit-skin-key" data-key="' + esc(key) + '" data-label="' + esc(label) + '">' + esc(label) + '</button>';
+    }
+    openSheet('' +
+      '<div class="sheet-grabber"></div>' +
+      '<div class="action-sheet">' +
+        '<div class="action-title">选择要自定义的组件</div>' +
+        '<div class="bank-sheet-body" style="max-height:48vh;overflow:auto">' + rows + '</div>' +
+        '<button class="action-row cancel" data-action="close-sheet">取消</button>' +
+      '</div>');
+  }
+
+  function showSkinDoneButton() {
+    if (!phone || $id('skinDoneBtn')) return;
+    var btn = document.createElement('button');
+    btn.id = 'skinDoneBtn';
+    btn.type = 'button';
+    btn.textContent = '完成';
+    btn.setAttribute('data-action', 'exit-skin-editing');
+    btn.style.cssText = 'position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:60;padding:12px 30px;border:0;border-radius:24px;background:#3d6bf5;color:#fff;font-size:15px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.28)';
+    phone.appendChild(btn);
+  }
+
   function enterSkinEditing() {
     appearance.editing = true;
     if (phone) phone.classList.add('skin-editing');
+    tagSkinTargets();
+    applySkins();
     closeSheet();
+    showSkinDoneButton();
     toast('编辑模式：点击任意组件更换图案');
   }
 
   function exitSkinEditing() {
     appearance.editing = false;
     if (phone) phone.classList.remove('skin-editing');
+    var btn = $id('skinDoneBtn');
+    if (btn && btn.parentNode) btn.parentNode.removeChild(btn);
     render();
     toast('已完成外观编辑');
   }
@@ -1351,7 +1389,9 @@
 
   function persist() {
     saveJSON(STORAGE_KEY, {
-      articles: state.articles,
+      articles: state.articles.filter(function (article) {
+        return article.kind !== 'exam';
+      }),
       favorites: state.favorites,
       fontSize: state.fontSize,
       showTranslations: state.showTranslations,
@@ -1858,6 +1898,7 @@
           '<button class="tool-btn' + (state.readMode ? ' active' : '') + '" data-action="toggle-read-mode">' + icon(modeIcon, 18) + '<span>' + modeLabel + '</span></button>' +
           '<button class="tool-btn" data-action="translate">' + icon('translate', 18) + '<span>翻译</span></button>' +
           '<button class="tool-btn" data-action="open-player-settings" data-mode="article">' + icon('play', 18) + '<span>朗读</span></button>' +
+          (article.kind === 'exam' && article.answers ? '<button class="tool-btn" data-action="show-exam-answers">' + icon('check', 18) + '<span>对答案</span></button>' : '') +
           '<button class="tool-btn" data-action="open-favorites">' + icon('star', 18) + '<span>收藏夹</span></button>' +
           '<button class="tool-btn" data-action="reader-menu">' + icon('more', 18) + '<span>更多</span></button>' +
         '</div>' +
@@ -1943,11 +1984,12 @@
   function vocabRowsHtml() {
     var words = filteredWords();
     if (!words.length) return emptyListHtml('没有找到匹配的单词');
-    return words.map(function (entry) {
+    return words.map(function (entry, index) {
       return '' +
         '<div class="vocab-row">' +
           '<div class="vocab-main" role="button" tabindex="0" data-action="open-word" data-word="' + esc(normalizeKey(entry.word)) + '">' +
             '<div class="vocab-word-line">' +
+              '<span class="vocab-index" style="min-width:22px;margin-right:8px;color:var(--text-2);font-size:12px;text-align:right">' + (index + 1) + '</span>' +
               '<span class="vocab-word">' + esc(entry.word) + '</span>' +
               (entry.phonetic ? '<span class="vocab-phonetic">' + esc(entry.phonetic) + '</span>' : '') +
               (isFavorited('word', entry.word) ? '<span class="star-dot">★</span>' : '') +
@@ -2261,12 +2303,13 @@
     var cards = samples.map(function (article) {
       var words = countWords(article.content);
       var isSample = article.kind === 'sample';
+      var isExam = article.kind === 'exam';
       var levelText = article.level === 'cet6' ? 'CET-6' : (article.level === 'cet4' ? 'CET-4' : '未分级');
       var translated = articleIsFullyTranslated(article);
       return '' +
         '<div class="bank-sample-card" role="button" tabindex="0" data-action="open-article" data-id="' + esc(article.id) + '">' +
           '<div class="bank-sample-head">' +
-            '<span class="bank-tag">' + (isSample ? '模拟练习' : '我的真题') + '</span>' +
+            '<span class="bank-tag">' + (isExam ? '真题' : (isSample ? '模拟练习' : '我的真题')) + '</span>' +
             '<span class="bank-tag ghost">' + levelText + '</span>' +
             '<span class="bank-sample-meta">' + words + ' 词' + (translated ? ' · 已翻译' : '') + '</span>' +
           '</div>' +
@@ -2913,6 +2956,32 @@
     });
   }
 
+  function loadExamBank() {
+    var banks = [];
+    if (window.BANK_CET4) banks = banks.concat(window.BANK_CET4);
+    if (window.BANK_CET6) banks = banks.concat(window.BANK_CET6);
+    if (!banks.length) return;
+    var existing = {};
+    for (var i = 0; i < state.articles.length; i += 1) {
+      existing[state.articles[i].id] = true;
+    }
+    for (var j = 0; j < banks.length; j += 1) {
+      var item = banks[j];
+      if (!item || existing[item.id]) continue;
+      state.articles.push({
+        id: item.id,
+        title: item.title,
+        content: item.content,
+        createdAt: Date.now(),
+        bank: true,
+        kind: 'exam',
+        level: item.level,
+        answers: item.answers || '',
+        translation: {}
+      });
+    }
+  }
+
   function toggleWordFavorite(word, meaning, phonetic) {
     if (!word) return;
     if (isFavorited('word', word)) {
@@ -3308,6 +3377,12 @@
       case 'start-skin-editing':
         enterSkinEditing();
         break;
+      case 'open-skin-picker':
+        openSkinPicker();
+        break;
+      case 'edit-skin-key':
+        openSkinSheet(el.getAttribute('data-key'), el.getAttribute('data-label') || '组件');
+        break;
       case 'exit-skin-editing':
         exitSkinEditing();
         break;
@@ -3340,6 +3415,20 @@
         break;
       case 'open-bank-detail':
         openBankPaperSheet(findBankPaper(el.dataset.id));
+        break;
+      case 'show-exam-answers':
+        var examArticle = currentArticle();
+        if (!examArticle || !examArticle.answers) {
+          toast('暂无答案');
+          break;
+        }
+        openSheet('' +
+          '<div class="sheet-grabber"></div>' +
+          '<div class="action-sheet">' +
+            '<div class="action-title">参考答案</div>' +
+            '<div class="bank-sheet-body" style="max-height:60vh;overflow:auto;white-space:pre-wrap;font-size:13px;line-height:1.6">' + esc(examArticle.answers) + '</div>' +
+            '<button class="action-row cancel" data-action="close-sheet">关闭</button>' +
+          '</div>');
         break;
       case 'open-official':
         openOfficialSource(findOfficialSource(el.dataset.id));
@@ -3484,6 +3573,13 @@
   }
 
   function bindEvents() {
+    var backdrop = $id('sheetBackdrop');
+    if (backdrop) {
+      backdrop.addEventListener('click', function () {
+        closeSheet();
+      });
+    }
+
     document.addEventListener('click', function (event) {
       if (!appearance.editing) return;
       if (event.target.closest && event.target.closest('#sheet')) return;
@@ -3670,6 +3766,7 @@
     }
 
     ensureBankSamples();
+    loadExamBank();
 
     loadBackup();
     loadAppearance();
@@ -3685,6 +3782,14 @@
   }
 
   window.__androidHandleBack = function () {
+    if (appearance.editing) {
+      exitSkinEditing();
+      return 'handled';
+    }
+    if (sheetOpen) {
+      closeSheet();
+      return 'handled';
+    }
     if (state.navStack && state.navStack.length) {
       goBack();
       return 'handled';

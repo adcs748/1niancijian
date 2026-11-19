@@ -224,12 +224,19 @@ public class MainActivity extends AppCompatActivity {
 
         @JavascriptInterface
         public void speak(String text) {
+            speak(text, "en-US");
+        }
+
+        @JavascriptInterface
+        public void speak(String text, String lang) {
             if (!ready || text == null) return;
             String content = text.trim();
             if (content.isEmpty()) return;
             if (content.length() > 1200) {
                 content = content.substring(0, 1200);
             }
+            Locale locale = "zh-CN".equals(lang) ? Locale.SIMPLIFIED_CHINESE : Locale.US;
+            tts.setLanguage(locale);
             tts.speak(content, TextToSpeech.QUEUE_FLUSH, null, "ec-" + System.currentTimeMillis());
         }
 

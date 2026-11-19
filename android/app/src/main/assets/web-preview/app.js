@@ -2300,27 +2300,50 @@
   }
 
   function samplesSection(samples) {
-    var cards = samples.map(function (article) {
-      var words = countWords(article.content);
-      var isSample = article.kind === 'sample';
-      var isExam = article.kind === 'exam';
-      var levelText = article.level === 'cet6' ? 'CET-6' : (article.level === 'cet4' ? 'CET-4' : '未分级');
-      var translated = articleIsFullyTranslated(article);
-      return '' +
-        '<div class="bank-sample-card" role="button" tabindex="0" data-action="open-article" data-id="' + esc(article.id) + '">' +
-          '<div class="bank-sample-head">' +
-            '<span class="bank-tag">' + (isExam ? '真题' : (isSample ? '模拟练习' : '我的真题')) + '</span>' +
-            '<span class="bank-tag ghost">' + levelText + '</span>' +
-            '<span class="bank-sample-meta">' + words + ' 词' + (translated ? ' · 已翻译' : '') + '</span>' +
-          '</div>' +
-          '<div class="bank-sample-title">' + esc(article.title) + '</div>' +
-          '<div class="bank-sample-desc">' + esc(truncate(splitParagraphs(article.content)[0] || '', 72)) + '</div>' +
-        '</div>';
-    }).join('');
+    if (!samples.length) {
+      return '<div class="bank-section"><div class="bank-section-title">可阅读资料<span>保留翻译 / 选词 / 语法 / 收藏 / 朗读</span></div>' +
+        emptyListHtml('该级别暂无资料，可点击右上角导入真题') + '</div>';
+    }
+
+    var groups = {};
+    var years = [];
+    samples.forEach(function (article) {
+      var y = article.year || '其他';
+      if (!groups[y]) {
+        groups[y] = [];
+        years.push(y);
+      }
+      groups[y].push(article);
+    });
+    years.sort(function (a, b) { return Number(b) - Number(a); });
+
+    var body = '';
+    years.forEach(function (y) {
+      body += '<div style="font-size:13px;font-weight:700;margin:16px 0 8px;color:var(--text-2)">' + esc(String(y)) + ' 年</div>';
+      groups[y].forEach(function (article) {
+        var words = countWords(article.content);
+        var isSample = article.kind === 'sample';
+        var isExam = article.kind === 'exam';
+        var levelText = article.level === 'cet6' ? 'CET-6' : (article.level === 'cet4' ? 'CET-4' : '未分级');
+        var translated = articleIsFullyTranslated(article);
+        var setText = article.set ? ('第' + article.set + '套') : '';
+        body += '' +
+          '<div class="bank-sample-card" role="button" tabindex="0" data-action="open-article" data-id="' + esc(article.id) + '">' +
+            '<div class="bank-sample-head">' +
+              '<span class="bank-tag">' + (isExam ? '真题' : (isSample ? '模拟练习' : '我的真题')) + '</span>' +
+              '<span class="bank-tag ghost">' + levelText + '</span>' +
+              (setText ? '<span class="bank-tag ghost">' + setText + '</span>' : '') +
+              '<span class="bank-sample-meta">' + words + ' 词' + (translated ? ' · 已翻译' : '') + '</span>' +
+            '</div>' +
+            '<div class="bank-sample-title">' + esc(article.title) + '</div>' +
+            '<div class="bank-sample-desc">' + esc(truncate(splitParagraphs(article.content)[0] || '', 72)) + '</div>' +
+          '</div>';
+      });
+    });
 
     return '<div class="bank-section">' +
-      '<div class="bank-section-title">可阅读资料<span>保留翻译 / 选词 / 语法 / 收藏 / 朗读</span></div>' +
-      (cards || emptyListHtml('该级别暂无资料，可点击右上角导入真题')) +
+      '<div class="bank-section-title">可阅读资料<span>按级别 → 年份 → 套</span></div>' +
+      body +
       '</div>';
   }
 
@@ -2976,6 +2999,9 @@
         bank: true,
         kind: 'exam',
         level: item.level,
+        year: item.year,
+        month: item.month,
+        set: item.set,
         answers: item.answers || '',
         translation: {}
       });

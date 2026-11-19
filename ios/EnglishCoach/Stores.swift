@@ -201,6 +201,7 @@ final class ArticleStore: ObservableObject {
         storageURL = directory.appendingPathComponent("articles.json")
         load()
         ensureBankSamples()
+        loadExamBank()
     }
 
     var personalArticles: [Article] {
@@ -256,7 +257,8 @@ final class ArticleStore: ObservableObject {
     }
 
     private func save() {
-        guard let data = try? JSONEncoder().encode(articles) else { return }
+        let persistable = articles.filter { $0.kind != "exam" }
+        guard let data = try? JSONEncoder().encode(persistable) else { return }
         try? data.write(to: storageURL, options: .atomic)
     }
 
@@ -280,6 +282,32 @@ final class ArticleStore: ObservableObject {
             articles.sort { $0.createdAt > $1.createdAt }
             save()
         }
+    }
+
+    private func loadExamBank() {
+        var titles = Set(articles.map { $0.title })
+        for level in ["cet4", "cet6"] {
+            guard let url = Bundle.main.url(forResource: "bank-\(level)", withExtension: "json")
+                    ?? Bundle.main.url(forResource: "bank-\(level)", withExtension: "json", subdirectory: "Resources"),
+                  let data = try? Data(contentsOf: url),
+                  let papers = try? JSONDecoder().decode([ExamPaper].self, from: data) else {
+                continue
+            }
+            for paper in papers {
+                guard !titles.contains(paper.title) else { continue }
+                titles.insert(paper.title)
+                articles.append(Article(
+                    title: paper.title,
+                    content: paper.content,
+                    createdAt: Date(),
+                    bank: true,
+                    kind: "exam",
+                    level: paper.level,
+                    answers: paper.answers
+                ))
+            }
+        }
+        articles.sort { $0.createdAt > $1.createdAt }
     }
 }
 

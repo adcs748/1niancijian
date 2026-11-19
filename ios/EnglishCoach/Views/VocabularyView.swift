@@ -100,8 +100,8 @@ struct VocabularyView: View {
                         if words.isEmpty {
                             emptyState("没有找到匹配的单词")
                         } else {
-                            ForEach(words) { entry in
-                                wordRow(entry)
+                            ForEach(Array(words.enumerated()), id: \.element.id) { index, entry in
+                                wordRow(entry, index: index + 1)
                             }
                         }
                     }
@@ -180,8 +180,13 @@ struct VocabularyView: View {
         .padding(.vertical, 4)
     }
 
-    private func wordRow(_ entry: WordEntry) -> some View {
+    private func wordRow(_ entry: WordEntry, index: Int) -> some View {
         HStack(spacing: 12) {
+            Text("\(index)")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(minWidth: 22, alignment: .trailing)
+
             Button {
                 wordSelection = WordCardSelection(word: entry.word)
             } label: {

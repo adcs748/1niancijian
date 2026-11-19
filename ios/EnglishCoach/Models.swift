@@ -56,6 +56,7 @@ struct Article: Identifiable, Codable, Hashable {
     var bank: Bool
     var kind: String
     var level: String
+    var answers: String?
 
     init(
         id: UUID = UUID(),
@@ -66,7 +67,8 @@ struct Article: Identifiable, Codable, Hashable {
         translatedAt: Date? = nil,
         bank: Bool = false,
         kind: String = "article",
-        level: String = ""
+        level: String = "",
+        answers: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -77,10 +79,11 @@ struct Article: Identifiable, Codable, Hashable {
         self.bank = bank
         self.kind = kind
         self.level = level
+        self.answers = answers
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, title, content, createdAt, translations, translatedAt, bank, kind, level
+        case id, title, content, createdAt, translations, translatedAt, bank, kind, level, answers
     }
 
     init(from decoder: Decoder) throws {
@@ -94,6 +97,7 @@ struct Article: Identifiable, Codable, Hashable {
         bank = (try? container.decode(Bool.self, forKey: .bank)) ?? false
         kind = (try? container.decode(String.self, forKey: .kind)) ?? "article"
         level = (try? container.decode(String.self, forKey: .level)) ?? ""
+        answers = try? container.decodeIfPresent(String.self, forKey: .answers)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -107,10 +111,17 @@ struct Article: Identifiable, Codable, Hashable {
         try container.encode(bank, forKey: .bank)
         try container.encode(kind, forKey: .kind)
         try container.encode(level, forKey: .level)
+        try container.encodeIfPresent(answers, forKey: .answers)
     }
 
     var paragraphs: [String] {
-        ParagraphParser.paragraphs(from: content)
+        if kind == "exam" {
+            return content
+                .components(separatedBy: "\n")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+        }
+        return ParagraphParser.paragraphs(from: content)
     }
 
     var wordCount: Int {
@@ -230,6 +241,17 @@ struct OfficialSource: Identifiable, Hashable {
     let tag: String
     let detail: String
     let urlString: String
+}
+
+struct ExamPaper: Codable, Identifiable {
+    let id: String
+    let title: String
+    let level: String
+    let year: Int
+    let month: Int
+    let set: Int
+    let content: String
+    let answers: String
 }
 
 enum QuestionBank {

@@ -1830,13 +1830,26 @@
       '</div>';
   }
 
+  function examLineType(text) {
+    var line = String(text || '').trim();
+    if (/^Part\s+[IVX]+/i.test(line)) return 'part';
+    if (/^Section\s+[A-Z]/i.test(line)) return 'section';
+    if (/^Directions:/i.test(line)) return 'direction';
+    if (/^\d+\./.test(line)) return 'question';
+    if (/^[A-D]\)/.test(line)) return 'option';
+    if (/参考答案|^[一二三四]、/.test(line)) return 'answer';
+    return 'text';
+  }
+
   function readerView(animate) {
     var article = currentArticle();
     if (!article) {
       return '<div class="view"><div class="empty-card" style="margin:60px 20px">文章不存在</div></div>';
     }
 
-    var paragraphs = splitParagraphs(article.content);
+    var paragraphs = article.kind === 'exam'
+      ? article.content.split('\n').map(function (line) { return line.trim(); }).filter(function (line) { return line.length > 0; })
+      : splitParagraphs(article.content);
     var parsedList = paragraphs.map(tokenizeParagraph);
     var translatedCount = 0;
     paragraphs.forEach(function (_, index) {
@@ -1850,7 +1863,7 @@
       var offline = translation && translation.indexOf('（离线逐词示意）') === 0;
       var content = translation && offline ? translation.replace('（离线逐词示意）', '') : translation;
       return '' +
-        '<div class="para-card">' +
+        '<div class="para-card' + (article.kind === 'exam' ? ' exam-line exam-' + examLineType(paragraph) : '') + '">' +
           '<p class="para-text">' + tokensHtml(index, parsedList[index]) + '</p>' +
           (visible
             ? '<div class="translation"><span class="bar"></span><span>' +
@@ -1884,7 +1897,7 @@
     var modeLabel = state.readMode ? '阅读中' : '阅读模式';
 
     return '' +
-      '<div class="view view-reader' + viewAnimClass(animate) + (state.readMode ? ' reader-locked' : '') +
+      '<div class="view view-reader' + viewAnimClass(animate) + (state.readMode ? ' reader-locked' : '') + (article.kind === 'exam' ? ' exam-reader' : '') +
         '" style="--reader-font:' + state.fontSize + 'px">' +
         '<div class="navbar">' +
           '<button class="nav-btn" data-action="back">' + icon('chevronLeft', 18) + ' 返回</button>' +
@@ -3388,8 +3401,17 @@
         break;
       case 'pick-skin':
         imageTarget = pendingSkinKey;
-        var skinInput = $id('skinInput');
-        if (skinInput) skinInput.click();
+        var skinPicker = document.createElement('input');
+        skinPicker.type = 'file';
+        skinPicker.accept = 'image/*';
+        skinPicker.style.display = 'none';
+        document.body.appendChild(skinPicker);
+        skinPicker.addEventListener('change', function () {
+          var file = skinPicker.files && skinPicker.files[0];
+          if (file && imageTarget) handleImageFile(file, imageTarget);
+          if (skinPicker.parentNode) skinPicker.parentNode.removeChild(skinPicker);
+        });
+        skinPicker.click();
         break;
       case 'clear-skin':
         if (pendingSkinKey) {

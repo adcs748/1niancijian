@@ -23,6 +23,7 @@ struct ReaderView: View {
     @State private var selectionItem: SelectionSheetItem?
     @State private var showPlaybackSheet = false
     @State private var showMoreMenu = false
+    @State private var showAnswers = false
 
     private var article: Article? {
         store.article(withID: articleID)
@@ -75,6 +76,10 @@ struct ReaderView: View {
                     }
                     .presentationDetents([.medium, .large])
                 }
+                .sheet(isPresented: $showAnswers) {
+                    AnswerSheet(title: article.title, answers: article.answers ?? "")
+                        .presentationDetents([.medium, .large])
+                }
                 .confirmationDialog("阅读设置", isPresented: $showMoreMenu, titleVisibility: .visible) {
                     Button(showTranslations ? "隐藏译文" : "显示译文") {
                         showTranslations.toggle()
@@ -121,6 +126,11 @@ struct ReaderView: View {
                 }
                 toolButton(skinKey: "tool-play", title: "朗读", systemImage: "play.fill") {
                     showPlaybackSheet = true
+                }
+                if article.kind == "exam", article.answers != nil {
+                    toolButton(skinKey: "tool-answers", title: "对答案", systemImage: "checkmark.circle") {
+                        showAnswers = true
+                    }
                 }
                 NavigationLink {
                     VocabularyView(initialTab: .favorites)
@@ -434,6 +444,39 @@ struct ReaderView: View {
             if errorMessage == nil {
                 working.translatedAt = Date()
                 store.update(working)
+            }
+        }
+    }
+}
+struct AnswerSheet: View {
+    let title: String
+    let answers: String
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                Text(answers)
+                    .font(.system(size: 14))
+                    .lineSpacing(4)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(20)
+            }
+            .background(Brand.pageBackground.ignoresSafeArea())
+            .navigationTitle("参考答案")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("关闭") { dismiss() }
+                }
+            }
+            .safeAreaInset(edge: .top) {
+                Text(title)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 6)
             }
         }
     }

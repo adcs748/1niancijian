@@ -112,7 +112,7 @@ struct QuestionBankView: View {
         articleStore.articles
             .filter { $0.bank }
             .filter { levelFilter == "all" || $0.level == levelFilter }
-            .sorted { $0.createdAt > $1.createdAt }
+            .sorted { $0.title < $1.title }
     }
 
     private var filteredPapers: [BankPaper] {

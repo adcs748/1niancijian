@@ -2308,3 +2308,10 @@ html[data-theme="dark"] .desktop-icon-wrap span {
     top: calc(28px + env(safe-area-inset-top, 20px));
   }
 }
+.exam-reader .para-card { background: transparent; box-shadow: none; padding: 1px 0; margin: 0; border-radius: 0; }
+.exam-reader .para-card.exam-part { margin-top: 18px; font-weight: 700; }
+.exam-reader .para-card.exam-section { margin-top: 10px; font-weight: 600; }
+.exam-reader .para-card.exam-direction { color: var(--text-2); font-size: 13px; }
+.exam-reader .para-card.exam-question { margin-top: 8px; font-weight: 600; }
+.exam-reader .para-card.exam-option { padding-left: 18px; }
+.exam-reader .para-card.exam-answer { margin-top: 14px; color: #3d6bf5; }
